@@ -35,4 +35,3 @@ tree.plot_tree(arvore,
 
 proba = arvore.predict_proba([[1,1,1,1]])[0]
 pd.Series(proba, index=arvore.classes_)
-# %%
