@@ -64,4 +64,3 @@ df_predict
 
 # Matriz de confusão
 pd.crosstab(df_predict['Pessoa_Feliz'], df_predict['predict_arvore'])
-# %%
