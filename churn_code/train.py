@@ -2,18 +2,18 @@
 
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn import model_selection, tree, linear_model, metrics, pipeline
+from sklearn import model_selection, tree, linear_model, naive_bayes, metrics, pipeline
 from feature_engine import discretisation, encoding
 # %%
 
+pd.options.display.max_columns = 500
+pd.options.display.max_rows = 500
+# %%
 df = pd.read_csv("../data/abt_churn.csv")
 df.head()
 # %%
 
-out = df[df["dtRef"]==df['dtRef'].max()].copy()
-out
-# %%
-
+oot = df[df["dtRef"]==df['dtRef'].max()].copy()
 df_train = df[df["dtRef"]<df['dtRef'].max()].copy()
 # %%
 
@@ -33,6 +33,7 @@ X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y,
 # %%
 
 # Verificando taxa da variável resposta do target
+print("Taxa variável resposta geral:", y.mean())
 print(f"Taxa variável resposta Treino: {y_train.mean()}")
 print(f"Taxa variável resposta Teste: {y_test.mean()}")
 # %%
@@ -89,35 +90,61 @@ onehot = encoding.OneHotEncoder(variables=best_features, ignore_format=True)
 # %%
 # MODEL
 
-reg = linear_model.LogisticRegression(penalty=None, random_state=42, max_iter=100000)
+model = linear_model.LogisticRegression(penalty=None, random_state=42, max_iter=100000)
+model = naive_bayes.BernoulliNB()
 
 model_pipeline = pipeline.Pipeline(
     steps=[
         ('Discretizar', tree_discretization),
         ('Onehot', onehot),
-        ('Model', reg),
+        ('Model', model),
     ]
 )
 
-model_pipeline.fit(X_train, y_train)
+model_pipeline.fit(X_train[best_features], y_train)
 # %%
 
-y_train_predict = model_pipeline.predict(X_train)
-y_train_prob = model_pipeline.predict_proba(X_train)[:,1]
+y_train_predict = model_pipeline.predict(X_train[best_features])
+y_train_proba = model_pipeline.predict_proba(X_train[best_features])[:,1]
 
 acc_train = metrics.accuracy_score(y_train, y_train_predict)
-auc_train = metrics.roc_auc_score(y_train, y_train_prob)
+auc_train = metrics.roc_auc_score(y_train, y_train_proba)
+roc_train = metrics.roc_curve(y_train, y_train_proba)
 
 print("Acurárcia Treino:", acc_train)
 print("AUC Treino:", auc_train)
 # %%
 
-y_test_predict = model_pipeline.predict(X_test)
-y_test_prob = model_pipeline.predict_proba(X_test)[:,1]
+y_test_predict = model_pipeline.predict(X_test[best_features])
+y_test_proba = model_pipeline.predict_proba(X_test[best_features])[:,1]
 
 acc_test = metrics.accuracy_score(y_test, y_test_predict)
-auc_test = metrics.roc_auc_score(y_test, y_test_prob)
+auc_test = metrics.roc_auc_score(y_test, y_test_proba)
+roc_test = metrics.roc_curve(y_test, y_test_proba)
 
 print("Acurárcia Teste:", acc_test)
 print("AUC Teste:", auc_test)
+# %%
+
+y_oot_predict = model_pipeline.predict(oot[best_features])
+y_oot_proba = model_pipeline.predict_proba(oot[best_features])[:,1]
+
+acc_oot = metrics.accuracy_score(oot[target], y_oot_predict)
+auc_oot = metrics.roc_auc_score(oot[target], y_oot_proba)
+roc_oot = metrics.roc_curve(oot[target], y_oot_proba)
+    
+print("Acurácia oot:", acc_oot)
+print("AUC oot:", auc_oot)
+# %%
+
+plt.plot(roc_train[0], roc_train[1])
+plt.plot(roc_test[0], roc_test[1])
+plt.plot(roc_oot[0], roc_oot[1])
+plt.grid(True)
+plt.title("Curva ROC")
+plt.legend([
+    f"Treino: {100*auc_train:.2f}",
+    f"Teste: {100*auc_test:.2f}",
+    f"Out-of-Time: {100*auc_oot:.2f}",
+])
 # %%
